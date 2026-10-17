@@ -2,130 +2,313 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>密码生成器</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>密码生成 · 高强度随机密码</title>
+<meta name="description" content="本地生成高强度随机密码，不上传任何数据">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg">
+<meta name="theme-color" content="#ef5350">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="密码生成">
 <style>
+
+:root{
+  --bg:#f4f5f7;           /* 页面底色：浅灰，避免纯白刺眼 */
+  --bg-glow:#ffffff;      /* 顶部径向光晕色，制造轻微的空间感 */
+  --surface:#ffffff;      /* 卡片底色 */
+  --surface-2:#fafbfc;    /* 卡片内的次级区块（输入框、结果区） */
+  --text:#16181d;         /* 主文字 */
+  --soft:#5d636e;         /* 次要文字 */
+  --mute:#8b929e;         /* 弱化文字（提示、单位、占位符） */
+  --line:#e6e8ec;         /* 分割线与边框 */
+  --accent:#26a69a;       /* 强调色（各玩具不同） */
+  --accent-soft:#e6f4f2;  /* 强调色的浅色版，用于底色块 */
+  --r-lg:20px; --r-md:14px; --r-sm:10px;
+  --ease:cubic-bezier(.4,0,.2,1);
+  --shadow:0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.06);
+}
 *{margin:0;padding:0;box-sizing:border-box}
-body{width:100vw;height:100vh;overflow:hidden;font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#fff;color:#333;display:flex;align-items:center;justify-content:center}
-canvas{position:fixed;top:0;left:0;z-index:0}
-.main{z-index:1;text-align:center;padding:40px}
-.lang-btn{position:fixed;top:20px;left:20px;z-index:10;background:#00BCD4;color:#fff;border:none;padding:8px 16px;font-size:14px;cursor:pointer;border-radius:4px;font-family:inherit;letter-spacing:1px}
-.lang-btn:hover{background:#0097A7}
-h1{font-size:36px;font-weight:300;color:#00BCD4;margin-bottom:30px;letter-spacing:2px}
-.card{background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:30px 40px;max-width:520px;width:90vw;box-shadow:0 2px 12px rgba(0,0,0,0.06)}
-.password-display{display:flex;align-items:center;background:#f0f8f9;border:2px solid #00BCD4;border-radius:6px;padding:4px;margin-bottom:24px}
-.password-display input{flex:1;border:none;background:transparent;font-size:20px;padding:10px 14px;outline:none;font-family:'Consolas','Courier New',monospace;color:#333;min-width:0}
-.copy-btn{background:#00BCD4;color:#fff;border:none;padding:10px 20px;font-size:14px;cursor:pointer;border-radius:4px;white-space:nowrap;font-family:inherit}
-.copy-btn:hover{background:#0097A7}
-.strength-bar{height:6px;border-radius:3px;background:#e0e0e0;margin-bottom:20px;overflow:hidden}
-.strength-fill{height:100%;border-radius:3px;transition:width .3s,background .3s}
-.options{text-align:left}
-.option-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.option-row label{font-size:14px;color:#555}
-.option-row input[type="range"]{width:120px;accent-color:#00BCD4}
-.option-row input[type="number"]{width:60px;border:1px solid #ddd;border-radius:4px;padding:4px 8px;text-align:center;font-size:14px;font-family:inherit}
-.option-row input[type="checkbox"]{accent-color:#00BCD4;width:16px;height:16px}
-.char-count{font-weight:600;color:#00BCD4}
-.generate-btn{width:100%;margin-top:16px;padding:12px;background:#00BCD4;color:#fff;border:none;font-size:16px;border-radius:6px;cursor:pointer;font-family:inherit;letter-spacing:1px}
-.generate-btn:hover{background:#0097A7}
-.fullscreen-btn{position:fixed;top:20px;right:20px;z-index:10;background:#00BCD4;color:#fff;border:none;padding:8px 16px;font-size:14px;cursor:pointer;border-radius:4px;font-family:inherit}
-.fullscreen-btn:hover{background:#0097A7}
+
+body{
+  font-family:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg);
+  /* 顶部一层极淡光晕，比死板的纯色更有层次 */
+  background-image:radial-gradient(120% 80% at 50% 0%, var(--bg-glow) 0%, rgba(255,255,255,0) 62%);
+  background-attachment:fixed;
+  color:var(--text);
+  min-height:100dvh;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:24px; -webkit-font-smoothing:antialiased;
+}
+
+.app{width:100%; max-width:480px; display:flex; flex-direction:column; align-items:center; gap:20px}
+
+.head{text-align:center}
+.head h1{font-size:22px; font-weight:600; letter-spacing:.5px}
+.head p{font-size:13px; color:var(--mute); margin-top:6px}
+
+.card{
+  width:100%; background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--r-lg); padding:22px; box-shadow:var(--shadow);
+}
+
+.stage{
+  width:288px; height:288px; position:relative;
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:50%; box-shadow:var(--shadow);
+  display:flex; align-items:center; justify-content:center;
+}
+.stage canvas{border-radius:50%}
+
+.phase{
+  font-size:29px; font-weight:300; letter-spacing:6px;
+  color:var(--accent); min-height:42px; text-align:center;
+  transition:color .4s var(--ease);
+}
+.cd{font-size:15px; color:var(--soft); font-variant-numeric:tabular-nums; min-height:22px}
+.meta{font-size:13px; color:var(--mute); min-height:20px; text-align:center}
+
+.row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
+.stats{display:flex; gap:10px; width:100%}
+.stat{
+  flex:1; background:var(--surface-2); border:1px solid var(--line);
+  border-radius:var(--r-md); padding:12px; text-align:center;
+}
+.stat .k{font-size:11px; color:var(--mute); letter-spacing:1px}
+.stat .v{font-size:21px; font-weight:600; margin-top:3px; font-variant-numeric:tabular-nums}
+
+.chip{
+  padding:9px 18px; font-size:13px; font-weight:500; font-family:inherit;
+  background:var(--surface); color:var(--soft);
+  border:1px solid var(--line); border-radius:999px; cursor:pointer;
+  transition:all .2s var(--ease);
+}
+.chip:hover{border-color:var(--accent); color:var(--accent)}
+.chip.active{
+  background:var(--accent); border-color:var(--accent); color:#fff;
+  box-shadow:0 4px 14px rgba(0,0,0,.14);
+}
+
+.btn{
+  padding:13px 42px; font-size:15px; font-weight:600; font-family:inherit;
+  letter-spacing:3px; background:var(--accent); color:#fff;
+  border:none; border-radius:var(--r-md); cursor:pointer;
+  transition:transform .15s var(--ease), box-shadow .2s var(--ease);
+  box-shadow:0 6px 20px rgba(0,0,0,.16);
+}
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn.ghost{background:transparent; border:1px solid var(--line); color:var(--soft); box-shadow:none}
+
+.lang{
+  position:fixed; top:16px; right:16px; z-index:20;
+  padding:7px 14px; font-size:12px; font-weight:600; font-family:inherit;
+  background:var(--surface); color:var(--soft);
+  border:1px solid var(--line); border-radius:999px; cursor:pointer;
+  transition:all .2s var(--ease);
+}
+.lang:hover{border-color:var(--accent); color:var(--accent)}
+
+.hint{font-size:12px; color:var(--mute); text-align:center; line-height:1.7}
+
+@media (max-width:380px){
+  .stage{width:250px;height:250px}
+  .phase{font-size:25px; letter-spacing:4px}
+}
+
+:root{ --accent:#ef5350; --accent-soft:#fdeaea; }
+
+.outbox{
+  width:100%; background:var(--surface-2); border:1px solid var(--line);
+  border-radius:var(--r-md); padding:16px; font-size:19px; font-family:ui-monospace,Consolas,monospace;
+  letter-spacing:1px; word-break:break-all; min-height:60px;
+}
+.slider{width:100%; margin:10px 0 4px}
+.opts{display:flex; gap:8px; flex-wrap:wrap; margin:14px 0}
+.bar{height:6px; border-radius:3px; background:var(--line); overflow:hidden; margin-top:12px}
+.bar i{display:block; height:100%; width:0; background:var(--accent); transition:width .3s var(--ease)}
+
 </style>
 </head>
 <body>
-<button class="lang-btn" data-key="lang" onclick="toggleLang()">中/EN</button>
-<button class="fullscreen-btn" data-key="start" onclick="goFullscreen()">开始</button>
-<canvas id="bg"></canvas>
-<div class="main">
-  <h1 data-key="title">密码生成器</h1>
-  <div class="card">
-    <div class="password-display">
-      <input type="text" id="password" readonly data-key-placeholder="placeholder_password">
-      <button class="copy-btn" onclick="copyPassword()" data-key="copy">复制</button>
-    </div>
-    <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
-    <div class="options">
-      <div class="option-row">
-        <label data-key="length">长度</label>
-        <span class="char-count" id="lenVal">16</span>
-        <input type="range" id="lenRange" min="4" max="64" value="16" oninput="updateLen()">
-        <input type="number" id="lenNum" min="4" max="64" value="16" onchange="updateLenFromNum()">
-      </div>
-      <div class="option-row"><label data-key="uppercase">大写字母 (A-Z)</label><input type="checkbox" id="upper" checked></div>
-      <div class="option-row"><label data-key="lowercase">小写字母 (a-z)</label><input type="checkbox" id="lower" checked></div>
-      <div class="option-row"><label data-key="digits">数字 (0-9)</label><input type="checkbox" id="digit" checked></div>
-      <div class="option-row"><label data-key="symbols">符号 (!@#$)</label><input type="checkbox" id="symbol" checked></div>
-    </div>
-    <button class="generate-btn" onclick="generate()" data-key="generate">生成密码</button>
+<button class="lang" id="langBtn" onclick="toggleLang()">EN</button>
+<div class="app">
+
+  <div class="head">
+    <h1 id="t_title">密码生成</h1>
+    <p id="t_sub">全部在本地生成，不会上传</p>
   </div>
+
+  <div class="card">
+    <div class="outbox" id="out">点击生成</div>
+    <div class="bar"><i id="barFill"></i></div>
+    <div class="meta" id="strength" style="margin-top:8px"></div>
+
+    <div class="stats" style="margin-top:16px">
+      <div class="stat"><div class="k" id="t_len">长度</div><div class="v" id="vLen">16</div></div>
+      <div class="stat"><div class="k" id="t_ent">熵</div><div class="v" id="vEnt">--</div></div>
+    </div>
+    <input type="range" class="slider" id="len" min="6" max="64" value="16" oninput="onLenChange()">
+
+    <div class="opts" id="opts"></div>
+  </div>
+
+  <div class="row">
+    <button class="btn" onclick="gen()">生成</button>
+    <button class="btn ghost" onclick="copyPwd()">复制</button>
+  </div>
+
+  <div class="hint" id="t_hint">建议长度 ≥ 16，并勾选多种字符类型</div>
+
 </div>
 <script>
-const i18n={
-  zh:{title:"密码生成器",start:"开始",lang:"中/EN",copy:"复制",length:"长度",uppercase:"大写字母 (A-Z)",lowercase:"小写字母 (a-z)",digits:"数字 (0-9)",symbols:"符号 (!@#$)",generate:"生成密码",placeholder_password:"点击生成",copied:"已复制!",weak:"弱",fair:"一般",good:"良好",strong:"强",verystrong:"非常强"},
-  en:{title:"Password Generator",start:"Start",lang:"中/EN",copy:"Copy",length:"Length",uppercase:"Uppercase (A-Z)",lowercase:"Lowercase (a-z)",digits:"Digits (0-9)",symbols:"Symbols (!@#$)",generate:"Generate",placeholder_password:"Click generate",copied:"Copied!",weak:"Weak",fair:"Fair",good:"Good",strong:"Strong",verystrong:"Very Strong"}
+
+/* ============================================================
+ * 密码生成
+ * ------------------------------------------------------------
+ * 随机源：crypto.getRandomValues()（密码学安全随机数）
+ *   为什么不用 Math.random()？
+ *   Math.random() 是可预测的伪随机，用于生成密码会有被推断的风险。
+ *   浏览器里 crypto.getRandomValues 走的是系统熵源，安全得多。
+ *
+ * 熵值估算：entropy ≈ length * log2(字符集大小)
+ *   这是理论上限，仅在「每个字符独立均匀随机」时成立。
+ * ========================================================== */
+
+const SETS = {
+  lower: { label:'小写 a-z', chars:'abcdefghijkmnopqrstuvwxyz' },
+  upper: { label:'大写 A-Z', chars:'ABCDEFGHJKLMNPQRSTUVWXYZ' },
+  digit: { label:'数字 0-9', chars:'23456789' },
+  symbol:{ label:'符号 !@#', chars:'!@#$%^&*()-_=+[]{}' }
 };
-let lang='zh';
-function t(k){return i18n[lang][k]||k}
-function toggleLang(){lang=lang==='zh'?'en':'zh';document.querySelectorAll('[data-key]').forEach(el=>{if(el.tagName==='INPUT'&&el.type==='text')el.placeholder=i18n[lang].placeholder_password;else el.textContent=t(el.dataset.key)});document.querySelectorAll('[data-key-placeholder]').forEach(el=>{el.placeholder=t(el.dataset.keyPlaceholder)})}
 
-function goFullscreen(){document.documentElement.requestFullscreen().catch(()=>{});document.querySelector('.fullscreen-btn').remove();drawGrid()}
+/* 默认勾选：小写 + 大写 + 数字 */
+let enabled = { lower:true, upper:true, digit:true, symbol:false };
 
-const canvas=document.getElementById('bg'),ctx=canvas.getContext('2d');
-function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight}
-function drawGrid(){resize();ctx.strokeStyle='#f0f8f9';ctx.lineWidth=1;const s=40;for(let x=0;x<canvas.width;x+=s){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke()}for(let y=0;y<canvas.height;y+=s){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke()}}
-window.addEventListener('resize',drawGrid);
-drawGrid();
+const I18N = {
+  zh:{ title:'密码生成', sub:'全部在本地生成，不会上传', hint:'建议长度 ≥ 16，并勾选多种字符类型',
+       gen:'生成', copy:'复制', copied:'已复制', entropy:'熵', length:'长度',
+       weak:'弱', fair:'中', strong:'强', veryStrong:'极强' },
+  en:{ title:'Password Generator', sub:'Generated locally, never uploaded',
+       hint:'Use 16+ chars and several character sets',
+       gen:'Generate', copy:'Copy', copied:'Copied', entropy:'Entropy', length:'Length',
+       weak:'Weak', fair:'Fair', strong:'Strong', veryStrong:'Very strong' }
+};
+let lang = 'zh';
 
-function updateLen(){const v=document.getElementById('lenRange').value;document.getElementById('lenNum').value=v;document.getElementById('lenVal').textContent=v;generate()}
-function updateLenFromNum(){let v=parseInt(document.getElementById('lenNum').value);if(v<4)v=4;if(v>64)v=64;document.getElementById('lenRange').value=v;document.getElementById('lenVal').textContent=v;document.getElementById('lenNum').value=v;generate()}
+/** 生成密码：拼接所有已启用字符集，逐位安全随机抽取 */
+function gen(){
+  let pool = '';
+  Object.keys(SETS).forEach(function(k){
+    if (enabled[k]) pool += SETS[k].chars;
+  });
 
-function generate(){
-  const len=parseInt(document.getElementById('lenRange').value);
-  const useUpper=document.getElementById('upper').checked;
-  const useLower=document.getElementById('lower').checked;
-  const useDigit=document.getElementById('digit').checked;
-  const useSymbol=document.getElementById('symbol').checked;
-  let pool='';
-  if(useUpper)pool+='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  if(useLower)pool+='abcdefghijklmnopqrstuvwxyz';
-  if(useDigit)pool+='0123456789';
-  if(useSymbol)pool+='!@#$%^&*()-_=+[]{}|;:,.<>?';
-  if(!pool){document.getElementById('password').value='';updateStrength(0);return}
-  const arr=new Uint32Array(len);crypto.getRandomValues(arr);
-  let pw='';for(let i=0;i<len;i++)pw+=pool[arr[i]%pool.length];
-  document.getElementById('password').value=pw;
-  updateStrength(len);
+  if (!pool){
+    document.getElementById('out').textContent = I18N[lang].weak;
+    return;
+  }
+
+  const n = parseInt(document.getElementById('len').value, 10);
+  const buf = new Uint32Array(n);
+  crypto.getRandomValues(buf);          /* 密码学安全随机 */
+
+  let pwd = '';
+  for (let i=0;i<n;i++){
+    pwd += pool[buf[i] % pool.length];
+  }
+
+  document.getElementById('out').textContent = pwd;
+  rate(pwd, pool.length, n);
 }
 
-function updateStrength(len){
-  const fill=document.getElementById('strengthFill');
-  const useUpper=document.getElementById('upper').checked;
-  const useLower=document.getElementById('lower').checked;
-  const useDigit=document.getElementById('digit').checked;
-  const useSymbol=document.getElementById('symbol').checked;
-  const types=(useUpper?1:0)+(useLower?1:0)+(useDigit?1:0)+(useSymbol?1:0);
-  let score=len*2+types*8;
-  let pct=Math.min(score/80*100,100);
-  let color,label;
-  if(pct<25){color='#f44336';label=t('weak')}
-  else if(pct<50){color='#ff9800';label=t('fair')}
-  else if(pct<75){color='#ffeb3b';label=t('good')}
-  else if(pct<95){color='#8bc34a';label=t('strong')}
-  else{color='#00BCD4';label=t('verystrong')}
-  fill.style.width=pct+'%';fill.style.background=color;
+/**
+ * 评估强度：算理论熵值并给出口头化评级
+ * @param {string} pwd 密码
+ * @param {number} poolSize 字符集大小
+ * @param {number} len 长度
+ */
+function rate(pwd, poolSize, len){
+  const bits = len * Math.log2(poolSize);
+  let level, pct;
+
+  if      (bits < 40) { level = I18N[lang].weak;       pct = 25; }
+  else if (bits < 60) { level = I18N[lang].fair;       pct = 50; }
+  else if (bits < 90) { level = I18N[lang].strong;     pct = 75; }
+  else                { level = I18N[lang].veryStrong; pct = 100; }
+
+  document.getElementById('barFill').style.width = pct + '%';
+  document.getElementById('strength').textContent = level + ' · ' + Math.round(bits) + ' bits';
 }
 
-async function copyPassword(){
-  const pw=document.getElementById('password').value;
-  if(!pw)return;
-  await navigator.clipboard.writeText(pw);
-  const btn=document.querySelector('.copy-btn');
-  const orig=btn.textContent;
-  btn.textContent=t('copied');
-  setTimeout(()=>btn.textContent=orig,1500);
+/** 构建字符类型勾选框 */
+function buildOpts(){
+  const box = document.getElementById('opts');
+  box.innerHTML = '';
+  Object.keys(SETS).forEach(function(k){
+    const b = document.createElement('button');
+    b.className = 'chip' + (enabled[k] ? ' active' : '');
+    b.textContent = SETS[k].label;
+    b.onclick = function(){
+      enabled[k] = !enabled[k];
+      // 至少保留一种字符类型，否则生成的密码为空
+      const any = Object.keys(enabled).some(function(x){ return enabled[x]; });
+      if (!any) enabled[k] = true;
+      buildOpts();
+    };
+    box.appendChild(b);
+  });
 }
 
-generate();
+function onLenChange(){
+  document.getElementById('vLen').textContent = document.getElementById('len').value;
+}
+
+/** 复制到剪贴板；老浏览器降级用 execCommand */
+function copyPwd(){
+  const txt = document.getElementById('out').textContent;
+  if (!txt || txt === '点击生成') return;
+
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ flash(); }, function(){ fallback(txt); });
+  } else {
+    fallback(txt);
+  }
+}
+function fallback(txt){
+  const ta = document.createElement('textarea');
+  ta.value = txt; document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); flash(); } catch(e){}
+  document.body.removeChild(ta);
+}
+function flash(){
+  const el = document.getElementById('out');
+  const old = el.textContent;
+  el.textContent = I18N[lang].copied;
+  setTimeout(function(){ el.textContent = old; }, 900);
+}
+
+function refresh(){
+  const L = I18N[lang];
+  document.getElementById('t_title').textContent = L.title;
+  document.getElementById('t_sub').textContent   = L.sub;
+  document.getElementById('t_hint').textContent  = L.hint;
+  document.getElementById('langBtn').textContent = (lang==='zh') ? 'EN' : '中';
+}
+function toggleLang(){ lang = (lang==='zh') ? 'en' : 'zh'; refresh(); }
+
+buildOpts();
+refresh();
+gen();
+
+/* ---------- PWA 注册 ----------
+ * 注册 Service Worker 后本页被缓存，断网也能打开。
+ * 放在最后且 catch 掉异常：即使浏览器不支持也不影响正常功能。 */
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(){});
+  });
+}
 </script>
 </body>
 </html>
