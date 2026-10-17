@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>密码生成器</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:100vw;height:100vh;overflow:hidden;font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#fff;color:#333;display:flex;align-items:center;justify-content:center}
+canvas{position:fixed;top:0;left:0;z-index:0}
+.main{z-index:1;text-align:center;padding:40px}
+.lang-btn{position:fixed;top:20px;left:20px;z-index:10;background:#00BCD4;color:#fff;border:none;padding:8px 16px;font-size:14px;cursor:pointer;border-radius:4px;font-family:inherit;letter-spacing:1px}
+.lang-btn:hover{background:#0097A7}
+h1{font-size:36px;font-weight:300;color:#00BCD4;margin-bottom:30px;letter-spacing:2px}
+.card{background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:30px 40px;max-width:520px;width:90vw;box-shadow:0 2px 12px rgba(0,0,0,0.06)}
+.password-display{display:flex;align-items:center;background:#f0f8f9;border:2px solid #00BCD4;border-radius:6px;padding:4px;margin-bottom:24px}
+.password-display input{flex:1;border:none;background:transparent;font-size:20px;padding:10px 14px;outline:none;font-family:'Consolas','Courier New',monospace;color:#333;min-width:0}
+.copy-btn{background:#00BCD4;color:#fff;border:none;padding:10px 20px;font-size:14px;cursor:pointer;border-radius:4px;white-space:nowrap;font-family:inherit}
+.copy-btn:hover{background:#0097A7}
+.strength-bar{height:6px;border-radius:3px;background:#e0e0e0;margin-bottom:20px;overflow:hidden}
+.strength-fill{height:100%;border-radius:3px;transition:width .3s,background .3s}
+.options{text-align:left}
+.option-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.option-row label{font-size:14px;color:#555}
+.option-row input[type="range"]{width:120px;accent-color:#00BCD4}
+.option-row input[type="number"]{width:60px;border:1px solid #ddd;border-radius:4px;padding:4px 8px;text-align:center;font-size:14px;font-family:inherit}
+.option-row input[type="checkbox"]{accent-color:#00BCD4;width:16px;height:16px}
+.char-count{font-weight:600;color:#00BCD4}
+.generate-btn{width:100%;margin-top:16px;padding:12px;background:#00BCD4;color:#fff;border:none;font-size:16px;border-radius:6px;cursor:pointer;font-family:inherit;letter-spacing:1px}
+.generate-btn:hover{background:#0097A7}
+.fullscreen-btn{position:fixed;top:20px;right:20px;z-index:10;background:#00BCD4;color:#fff;border:none;padding:8px 16px;font-size:14px;cursor:pointer;border-radius:4px;font-family:inherit}
+.fullscreen-btn:hover{background:#0097A7}
+</style>
+</head>
+<body>
+<button class="lang-btn" data-key="lang" onclick="toggleLang()">中/EN</button>
+<button class="fullscreen-btn" data-key="start" onclick="goFullscreen()">开始</button>
+<canvas id="bg"></canvas>
+<div class="main">
+  <h1 data-key="title">密码生成器</h1>
+  <div class="card">
+    <div class="password-display">
+      <input type="text" id="password" readonly data-key-placeholder="placeholder_password">
+      <button class="copy-btn" onclick="copyPassword()" data-key="copy">复制</button>
+    </div>
+    <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+    <div class="options">
+      <div class="option-row">
+        <label data-key="length">长度</label>
+        <span class="char-count" id="lenVal">16</span>
+        <input type="range" id="lenRange" min="4" max="64" value="16" oninput="updateLen()">
+        <input type="number" id="lenNum" min="4" max="64" value="16" onchange="updateLenFromNum()">
+      </div>
+      <div class="option-row"><label data-key="uppercase">大写字母 (A-Z)</label><input type="checkbox" id="upper" checked></div>
+      <div class="option-row"><label data-key="lowercase">小写字母 (a-z)</label><input type="checkbox" id="lower" checked></div>
+      <div class="option-row"><label data-key="digits">数字 (0-9)</label><input type="checkbox" id="digit" checked></div>
+      <div class="option-row"><label data-key="symbols">符号 (!@#$)</label><input type="checkbox" id="symbol" checked></div>
+    </div>
+    <button class="generate-btn" onclick="generate()" data-key="generate">生成密码</button>
+  </div>
+</div>
+<script>
+const i18n={
+  zh:{title:"密码生成器",start:"开始",lang:"中/EN",copy:"复制",length:"长度",uppercase:"大写字母 (A-Z)",lowercase:"小写字母 (a-z)",digits:"数字 (0-9)",symbols:"符号 (!@#$)",generate:"生成密码",placeholder_password:"点击生成",copied:"已复制!",weak:"弱",fair:"一般",good:"良好",strong:"强",verystrong:"非常强"},
+  en:{title:"Password Generator",start:"Start",lang:"中/EN",copy:"Copy",length:"Length",uppercase:"Uppercase (A-Z)",lowercase:"Lowercase (a-z)",digits:"Digits (0-9)",symbols:"Symbols (!@#$)",generate:"Generate",placeholder_password:"Click generate",copied:"Copied!",weak:"Weak",fair:"Fair",good:"Good",strong:"Strong",verystrong:"Very Strong"}
+};
+let lang='zh';
+function t(k){return i18n[lang][k]||k}
+function toggleLang(){lang=lang==='zh'?'en':'zh';document.querySelectorAll('[data-key]').forEach(el=>{if(el.tagName==='INPUT'&&el.type==='text')el.placeholder=i18n[lang].placeholder_password;else el.textContent=t(el.dataset.key)});document.querySelectorAll('[data-key-placeholder]').forEach(el=>{el.placeholder=t(el.dataset.keyPlaceholder)})}
+
+function goFullscreen(){document.documentElement.requestFullscreen().catch(()=>{});document.querySelector('.fullscreen-btn').remove();drawGrid()}
+
+const canvas=document.getElementById('bg'),ctx=canvas.getContext('2d');
+function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight}
+function drawGrid(){resize();ctx.strokeStyle='#f0f8f9';ctx.lineWidth=1;const s=40;for(let x=0;x<canvas.width;x+=s){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke()}for(let y=0;y<canvas.height;y+=s){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke()}}
+window.addEventListener('resize',drawGrid);
+drawGrid();
+
+function updateLen(){const v=document.getElementById('lenRange').value;document.getElementById('lenNum').value=v;document.getElementById('lenVal').textContent=v;generate()}
+function updateLenFromNum(){let v=parseInt(document.getElementById('lenNum').value);if(v<4)v=4;if(v>64)v=64;document.getElementById('lenRange').value=v;document.getElementById('lenVal').textContent=v;document.getElementById('lenNum').value=v;generate()}
+
+function generate(){
+  const len=parseInt(document.getElementById('lenRange').value);
+  const useUpper=document.getElementById('upper').checked;
+  const useLower=document.getElementById('lower').checked;
+  const useDigit=document.getElementById('digit').checked;
+  const useSymbol=document.getElementById('symbol').checked;
+  let pool='';
+  if(useUpper)pool+='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  if(useLower)pool+='abcdefghijklmnopqrstuvwxyz';
+  if(useDigit)pool+='0123456789';
+  if(useSymbol)pool+='!@#$%^&*()-_=+[]{}|;:,.<>?';
+  if(!pool){document.getElementById('password').value='';updateStrength(0);return}
+  const arr=new Uint32Array(len);crypto.getRandomValues(arr);
+  let pw='';for(let i=0;i<len;i++)pw+=pool[arr[i]%pool.length];
+  document.getElementById('password').value=pw;
+  updateStrength(len);
+}
+
+function updateStrength(len){
+  const fill=document.getElementById('strengthFill');
+  const useUpper=document.getElementById('upper').checked;
+  const useLower=document.getElementById('lower').checked;
+  const useDigit=document.getElementById('digit').checked;
+  const useSymbol=document.getElementById('symbol').checked;
+  const types=(useUpper?1:0)+(useLower?1:0)+(useDigit?1:0)+(useSymbol?1:0);
+  let score=len*2+types*8;
+  let pct=Math.min(score/80*100,100);
+  let color,label;
+  if(pct<25){color='#f44336';label=t('weak')}
+  else if(pct<50){color='#ff9800';label=t('fair')}
+  else if(pct<75){color='#ffeb3b';label=t('good')}
+  else if(pct<95){color='#8bc34a';label=t('strong')}
+  else{color='#00BCD4';label=t('verystrong')}
+  fill.style.width=pct+'%';fill.style.background=color;
+}
+
+async function copyPassword(){
+  const pw=document.getElementById('password').value;
+  if(!pw)return;
+  await navigator.clipboard.writeText(pw);
+  const btn=document.querySelector('.copy-btn');
+  const orig=btn.textContent;
+  btn.textContent=t('copied');
+  setTimeout(()=>btn.textContent=orig,1500);
+}
+
+generate();
+</script>
+</body>
+</html>
