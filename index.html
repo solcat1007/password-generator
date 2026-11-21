@@ -196,12 +196,38 @@ const I18N = {
 };
 let lang = 'zh';
 
-/** 生成密码：拼接所有已启用字符集，逐位安全随机抽取 */
+/**
+ * 从 [0, max) 均匀取整数。拒绝落在不完整区间的随机值，
+ * 避免直接取模产生的 modulo bias。
+ */
+function randomInt(max){
+  if (!Number.isSafeInteger(max) || max < 1 || max > 0x100000000) {
+    throw new RangeError('随机范围无效');
+  }
+  const range = 0x100000000;
+  const limit = Math.floor(range / max) * max;
+  const value = new Uint32Array(1);
+  let x;
+  do {
+    crypto.getRandomValues(value);
+    x = value[0];
+  } while (x >= limit);
+  return x % max;
+}
+
+/** Fisher-Yates 洗牌，randomInt 保证每一步均匀 */
+function secureShuffle(chars){
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars;
+}
+
+/** 每种启用字符集至少出现一次，其余字符从总池均匀抽取 */
 function gen(){
-  let pool = '';
-  Object.keys(SETS).forEach(function(k){
-    if (enabled[k]) pool += SETS[k].chars;
-  });
+  const selectedSets = Object.keys(SETS).filter(function(k){ return enabled[k]; });
+  const pool = selectedSets.map(function(k){ return SETS[k].chars; }).join('');
 
   if (!pool){
     document.getElementById('out').textContent = I18N[lang].weak;
@@ -209,14 +235,21 @@ function gen(){
   }
 
   const n = parseInt(document.getElementById('len').value, 10);
-  const buf = new Uint32Array(n);
-  crypto.getRandomValues(buf);          /* 密码学安全随机 */
-
-  let pwd = '';
-  for (let i=0;i<n;i++){
-    pwd += pool[buf[i] % pool.length];
+  if (!Number.isInteger(n) || n < selectedSets.length || n > 64) {
+    document.getElementById('out').textContent = '长度必须至少等于已选字符类型数量';
+    return;
   }
 
+  const chars = selectedSets.map(function(k){
+    const set = SETS[k].chars;
+    return set[randomInt(set.length)];
+  });
+  while (chars.length < n) {
+    chars.push(pool[randomInt(pool.length)]);
+  }
+  secureShuffle(chars);
+
+  const pwd = chars.join('');
   document.getElementById('out').textContent = pwd;
   rate(pwd, pool.length, n);
 }
