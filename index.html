@@ -3,176 +3,179 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>密码生成 · 高强度随机密码</title>
-<meta name="description" content="本地生成高强度随机密码，不上传任何数据">
+<title>密码生成器 · v2.0</title>
+<meta name="description" content="本地生成高强度随机密码，带强度环形图、批量生成、字符排除与历史记录">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icon.svg">
 <meta name="theme-color" content="#ef5350">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="密码生成">
 <style>
-
 :root{
-  --bg:#f4f5f7;           /* 页面底色：浅灰，避免纯白刺眼 */
-  --bg-glow:#ffffff;      /* 顶部径向光晕色，制造轻微的空间感 */
-  --surface:#ffffff;      /* 卡片底色 */
-  --surface-2:#fafbfc;    /* 卡片内的次级区块（输入框、结果区） */
-  --text:#16181d;         /* 主文字 */
-  --soft:#5d636e;         /* 次要文字 */
-  --mute:#8b929e;         /* 弱化文字（提示、单位、占位符） */
-  --line:#e6e8ec;         /* 分割线与边框 */
-  --accent:#26a69a;       /* 强调色（各玩具不同） */
-  --accent-soft:#e6f4f2;  /* 强调色的浅色版，用于底色块 */
+  --bg:#f4f6f9; --surface:#ffffff; --surface-2:#f7f9fb;
+  --text:#16181d; --soft:#5d636e; --mute:#8b929e; --line:#e6e8ec;
+  --accent:#ef5350; --accent-soft:#fdeaea;
   --r-lg:20px; --r-md:14px; --r-sm:10px;
   --ease:cubic-bezier(.4,0,.2,1);
-  --shadow:0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.06);
+  --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);
 }
 *{margin:0;padding:0;box-sizing:border-box}
-
 body{
   font-family:system-ui,-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;
   background:var(--bg);
-  /* 顶部一层极淡光晕，比死板的纯色更有层次 */
-  background-image:radial-gradient(120% 80% at 50% 0%, var(--bg-glow) 0%, rgba(255,255,255,0) 62%);
-  background-attachment:fixed;
-  color:var(--text);
-  min-height:100dvh;
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  padding:24px; -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(120% 70% at 50% 0%,var(--accent-soft) 0%,rgba(255,255,255,0) 62%);
+  background-attachment:fixed;color:var(--text);min-height:100dvh;
+  display:flex;flex-direction:column;align-items:center;padding:20px 16px 44px;
+  -webkit-font-smoothing:antialiased;
 }
-
-.app{width:100%; max-width:480px; display:flex; flex-direction:column; align-items:center; gap:20px}
-
-.head{text-align:center}
-.head h1{font-size:22px; font-weight:600; letter-spacing:.5px}
-.head p{font-size:13px; color:var(--mute); margin-top:6px}
-
+.app{width:100%;max-width:480px;display:flex;flex-direction:column;gap:16px}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:2px}
+.head h1{font-size:22px;font-weight:700;letter-spacing:.5px}
+.head p{font-size:12px;color:var(--mute);margin-top:5px}
+.lang{
+  flex-shrink:0;padding:7px 14px;font-size:12px;font-weight:600;font-family:inherit;
+  background:var(--surface);color:var(--soft);border:1px solid var(--line);
+  border-radius:999px;cursor:pointer;transition:all .2s var(--ease);
+}
+.lang:hover{border-color:var(--accent);color:var(--accent)}
 .card{
-  width:100%; background:var(--surface); border:1px solid var(--line);
-  border-radius:var(--r-lg); padding:22px; box-shadow:var(--shadow);
+  width:100%;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-lg);padding:20px;box-shadow:var(--shadow);
 }
-
-.stage{
-  width:288px; height:288px; position:relative;
-  background:var(--surface); border:1px solid var(--line);
-  border-radius:50%; box-shadow:var(--shadow);
-  display:flex; align-items:center; justify-content:center;
-}
-.stage canvas{border-radius:50%}
-
-.phase{
-  font-size:29px; font-weight:300; letter-spacing:6px;
-  color:var(--accent); min-height:42px; text-align:center;
-  transition:color .4s var(--ease);
-}
-.cd{font-size:15px; color:var(--soft); font-variant-numeric:tabular-nums; min-height:22px}
-.meta{font-size:13px; color:var(--mute); min-height:20px; text-align:center}
-
-.row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
-.stats{display:flex; gap:10px; width:100%}
-.stat{
-  flex:1; background:var(--surface-2); border:1px solid var(--line);
-  border-radius:var(--r-md); padding:12px; text-align:center;
-}
-.stat .k{font-size:11px; color:var(--mute); letter-spacing:1px}
-.stat .v{font-size:21px; font-weight:600; margin-top:3px; font-variant-numeric:tabular-nums}
-
-.chip{
-  padding:9px 18px; font-size:13px; font-weight:500; font-family:inherit;
-  background:var(--surface); color:var(--soft);
-  border:1px solid var(--line); border-radius:999px; cursor:pointer;
-  transition:all .2s var(--ease);
-}
-.chip:hover{border-color:var(--accent); color:var(--accent)}
-.chip.active{
-  background:var(--accent); border-color:var(--accent); color:#fff;
-  box-shadow:0 4px 14px rgba(0,0,0,.14);
-}
-
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .btn{
-  padding:13px 42px; font-size:15px; font-weight:600; font-family:inherit;
-  letter-spacing:3px; background:var(--accent); color:#fff;
-  border:none; border-radius:var(--r-md); cursor:pointer;
-  transition:transform .15s var(--ease), box-shadow .2s var(--ease);
-  box-shadow:0 6px 20px rgba(0,0,0,.16);
+  padding:12px 26px;font-size:14px;font-weight:600;font-family:inherit;letter-spacing:1px;
+  background:var(--accent);color:#fff;border:0;border-radius:var(--r-md);cursor:pointer;
+  transition:transform .15s var(--ease),box-shadow .2s var(--ease);
+  box-shadow:0 6px 18px rgba(239,83,80,.22);
 }
 .btn:hover{transform:translateY(-1px)}
 .btn:active{transform:translateY(0)}
-.btn.ghost{background:transparent; border:1px solid var(--line); color:var(--soft); box-shadow:none}
-
-.lang{
-  position:fixed; top:16px; right:16px; z-index:20;
-  padding:7px 14px; font-size:12px; font-weight:600; font-family:inherit;
-  background:var(--surface); color:var(--soft);
-  border:1px solid var(--line); border-radius:999px; cursor:pointer;
-  transition:all .2s var(--ease);
+.btn.ghost{background:var(--surface);border:1px solid var(--line);color:var(--soft);box-shadow:none}
+.chip{
+  padding:9px 14px;font-size:12px;font-weight:500;font-family:inherit;
+  background:var(--surface);color:var(--soft);border:1px solid var(--line);
+  border-radius:999px;cursor:pointer;transition:all .2s var(--ease);
 }
-.lang:hover{border-color:var(--accent); color:var(--accent)}
-
-.hint{font-size:12px; color:var(--mute); text-align:center; line-height:1.7}
-
-@media (max-width:380px){
-  .stage{width:250px;height:250px}
-  .phase{font-size:25px; letter-spacing:4px}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(239,83,80,.25)}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.card-hd .t{font-size:14px;font-weight:600}
+.link{font-family:inherit;font-size:12px;color:var(--mute);background:none;border:0;cursor:pointer}
+.link:hover{color:var(--accent)}
+.strength-wrap{display:flex;align-items:center;gap:18px;margin-bottom:16px}
+.ring{
+  --pct:0%;--ring-color:#ef5350;
+  width:118px;height:118px;flex-shrink:0;border-radius:50%;
+  background:conic-gradient(var(--ring-color) var(--pct),var(--line) 0);
+  display:flex;align-items:center;justify-content:center;position:relative;
+  transition:background .4s var(--ease);
 }
-
-:root{ --accent:#ef5350; --accent-soft:#fdeaea; }
-
+.ring::before{content:'';position:absolute;inset:11px;border-radius:50%;background:var(--surface)}
+.ring .inner{position:relative;text-align:center}
+.ring .lvl{font-size:17px;font-weight:700;color:var(--ring-color)}
+.ring .bits{font-size:11px;color:var(--mute);margin-top:2px}
+.strength-info{flex:1;min-width:0}
+.strength-info .big{font-size:13px;font-weight:600;margin-bottom:6px}
+.strength-info .tip{font-size:12px;color:var(--mute);line-height:1.6}
 .outbox{
-  width:100%; background:var(--surface-2); border:1px solid var(--line);
-  border-radius:var(--r-md); padding:16px; font-size:19px; font-family:ui-monospace,Consolas,monospace;
-  letter-spacing:1px; word-break:break-all; min-height:60px;
+  width:100%;background:var(--surface-2);border:1px solid var(--line);
+  border-radius:var(--r-md);padding:15px;font-size:18px;font-family:ui-monospace,Consolas,monospace;
+  letter-spacing:1px;word-break:break-all;min-height:54px;cursor:pointer;transition:all .2s var(--ease);
 }
-.slider{width:100%; margin:10px 0 4px}
-.opts{display:flex; gap:8px; flex-wrap:wrap; margin:14px 0}
-.bar{height:6px; border-radius:3px; background:var(--line); overflow:hidden; margin-top:12px}
-.bar i{display:block; height:100%; width:0; background:var(--accent); transition:width .3s var(--ease)}
-
+.outbox:hover{border-color:var(--accent)}
+.field{margin:14px 0 6px}
+.field label{display:block;font-size:12px;color:var(--mute);margin-bottom:6px;letter-spacing:1px}
+input[type=text],input[type=number]{
+  width:100%;padding:11px 13px;font-size:15px;font-family:inherit;
+  border:1px solid var(--line);border-radius:var(--r-md);
+  background:var(--surface-2);color:var(--text);
+}
+input:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.slider{width:100%;margin:10px 0 4px;accent-color:var(--accent)}
+.stats{display:flex;gap:10px}
+.stat{flex:1;background:var(--surface-2);border:1px solid var(--line);
+  border-radius:var(--r-md);padding:10px;text-align:center}
+.stat .k{font-size:11px;color:var(--mute);letter-spacing:1px}
+.stat .v{font-size:20px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums}
+.opts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.list{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow-y:auto}
+.list-row{display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--surface-2);
+  border:1px solid var(--line);border-radius:var(--r-sm);cursor:pointer;font-size:12px}
+.list-row:hover{border-color:var(--accent)}
+.list-row .pw{flex:1;font-family:ui-monospace,monospace;color:var(--text);word-break:break-all}
+.list-row .tm{font-size:11px;color:var(--mute);flex-shrink:0}
+.empty{font-size:12px;color:var(--mute);text-align:center;padding:12px 0}
+.hint{font-size:12px;color:var(--mute);text-align:center;line-height:1.7}
+.toast{position:fixed;left:50%;bottom:32px;transform:translate(-50%,20px);background:rgba(22,24,29,.92);
+  color:#fff;padding:10px 20px;border-radius:999px;font-size:13px;z-index:1000;opacity:0;
+  pointer-events:none;transition:all .25s var(--ease)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
 </style>
 </head>
 <body>
-<button class="lang" id="langBtn" onclick="toggleLang()">EN</button>
 <div class="app">
-
   <div class="head">
-    <h1 id="t_title">密码生成</h1>
-    <p id="t_sub">全部在本地生成，不会上传</p>
+    <div><h1 id="t_title">密码生成器</h1><p id="t_sub">全部在本地生成，不会上传</p></div>
+    <button class="lang" id="langBtn" onclick="toggleLang()">EN</button>
   </div>
 
   <div class="card">
-    <div class="outbox" id="out">点击生成</div>
-    <div class="bar"><i id="barFill"></i></div>
-    <div class="meta" id="strength" style="margin-top:8px"></div>
+    <div class="strength-wrap">
+      <div class="ring" id="ring"><div class="inner">
+        <div class="lvl" id="level">—</div><div class="bits" id="bitsText">0 bits</div>
+      </div></div>
+      <div class="strength-info">
+        <div class="big" id="t_strength">强度评估</div>
+        <div class="tip" id="t_tip">熵值越高越安全。点击密码即可复制。</div>
+      </div>
+    </div>
 
-    <div class="stats" style="margin-top:16px">
+    <div class="outbox" id="out" onclick="copyPwd()" title="点击复制">点击「生成」</div>
+
+    <div class="stats" style="margin-top:14px">
       <div class="stat"><div class="k" id="t_len">长度</div><div class="v" id="vLen">16</div></div>
-      <div class="stat"><div class="k" id="t_ent">熵</div><div class="v" id="vEnt">--</div></div>
+      <div class="stat"><div class="k" id="t_ent">熵值</div><div class="v" id="vEnt">--</div></div>
+      <div class="stat"><div class="k" id="t_batch">批量</div><div class="v" id="vBatch">5</div></div>
     </div>
     <input type="range" class="slider" id="len" min="6" max="64" value="16" oninput="onLenChange()">
-
+    <input type="range" class="slider" id="batch" min="1" max="12" value="5" oninput="onBatchChange()">
     <div class="opts" id="opts"></div>
+
+    <div class="field">
+      <label id="t_exclude">排除字符（不会出现在密码中）</label>
+      <input type="text" id="exclude" placeholder="例如 0O1lI|" oninput="gen(false)">
+    </div>
   </div>
 
   <div class="row">
-    <button class="btn" onclick="gen()">生成</button>
-    <button class="btn ghost" onclick="copyPwd()">复制</button>
+    <button class="btn" onclick="gen()">✦ <span id="t_gen">生成</span></button>
+    <button class="btn ghost" onclick="genBatch()">☷ <span id="t_genbatch">批量生成</span></button>
+    <button class="btn ghost" onclick="copyPwd()">⧉ <span id="t_copy">复制</span></button>
+  </div>
+
+  <div class="card" id="batchCard" style="display:none">
+    <div class="card-hd"><span class="t" id="t_batchlist">批量结果（点击复制）</span></div>
+    <div class="list" id="batchList"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd"><span class="t" id="t_hist">生成历史</span>
+      <button class="link" id="t_clear" onclick="clearHistory()">清空</button></div>
+    <div class="list" id="history"></div>
   </div>
 
   <div class="hint" id="t_hint">建议长度 ≥ 16，并勾选多种字符类型</div>
-
 </div>
-<script>
+<div class="toast" id="toast"></div>
 
+<script>
 /* ============================================================
- * 密码生成
+ * 密码生成器 v2.0
  * ------------------------------------------------------------
- * 随机源：crypto.getRandomValues()（密码学安全随机数）
- *   为什么不用 Math.random()？
- *   Math.random() 是可预测的伪随机，用于生成密码会有被推断的风险。
- *   浏览器里 crypto.getRandomValues 走的是系统熵源，安全得多。
- *
- * 熵值估算：entropy ≈ length * log2(字符集大小)
- *   这是理论上限，仅在「每个字符独立均匀随机」时成立。
+ * 随机源：crypto.getRandomValues() + 拒绝采样消除取模偏差。
+ * 熵值估算：entropy ≈ length * log2(字符集大小)。
+ * v2.0 新增：强度环形图、批量生成、排除字符、生成历史。
  * ========================================================== */
 
 const SETS = {
@@ -181,66 +184,96 @@ const SETS = {
   digit: { label:'数字 0-9', chars:'23456789' },
   symbol:{ label:'符号 !@#', chars:'!@#$%^&*()-_=+[]{}' }
 };
-
-/* 默认勾选：小写 + 大写 + 数字 */
 let enabled = { lower:true, upper:true, digit:true, symbol:false };
+let history = [];
 
 const I18N = {
-  zh:{ title:'密码生成', sub:'全部在本地生成，不会上传', hint:'建议长度 ≥ 16，并勾选多种字符类型',
-       gen:'生成', copy:'复制', copied:'已复制', entropy:'熵', length:'长度',
-       weak:'弱', fair:'中', strong:'强', veryStrong:'极强' },
+  zh:{ title:'密码生成器', sub:'全部在本地生成，不会上传',
+       hint:'建议长度 ≥ 16，并勾选多种字符类型', gen:'生成', genbatch:'批量生成',
+       copy:'复制', copied:'已复制', clear:'清空', len:'长度', ent:'熵值', batch:'批量',
+       exclude:'排除字符（不会出现在密码中）', strength:'强度评估',
+       tip:'熵值越高越安全。点击密码即可复制。', batchlist:'批量结果（点击复制）',
+       hist:'生成历史', empty:'还没有生成记录', weak:'弱', fair:'中', strong:'强',
+       veryStrong:'极强', err:'请先放宽排除规则' },
   en:{ title:'Password Generator', sub:'Generated locally, never uploaded',
-       hint:'Use 16+ chars and several character sets',
-       gen:'Generate', copy:'Copy', copied:'Copied', entropy:'Entropy', length:'Length',
-       weak:'Weak', fair:'Fair', strong:'Strong', veryStrong:'Very strong' }
+       hint:'Use 16+ chars and several character sets', gen:'Generate', genbatch:'Batch',
+       copy:'Copy', copied:'Copied', clear:'Clear', len:'Length', ent:'Entropy', batch:'Batch',
+       exclude:'Excluded characters (never used)', strength:'Strength',
+       tip:'Higher entropy is safer. Tap a password to copy.', batchlist:'Batch results (tap to copy)',
+       hist:'History', empty:'No passwords yet', weak:'Weak', fair:'Fair', strong:'Strong',
+       veryStrong:'Very strong', err:'Relax the exclude rule first' }
 };
 let lang = 'zh';
 
-/** 生成密码：拼接所有已启用字符集，逐位安全随机抽取 */
-function gen(){
+function poolChars(){
   let pool = '';
-  Object.keys(SETS).forEach(function(k){
-    if (enabled[k]) pool += SETS[k].chars;
-  });
+  Object.keys(SETS).forEach(function(k){ if (enabled[k]) pool += SETS[k].chars; });
+  const ex = document.getElementById('exclude').value || '';
+  return pool.split('').filter(function(c){ return !ex.includes(c); }).join('');
+}
 
-  if (!pool){
-    document.getElementById('out').textContent = I18N[lang].weak;
-    return;
-  }
+/* 拒绝采样：丢弃落在最后一个不完整区间的值，保证每个字符等概率 */
+function randIdx(max){
+  const limit = Math.floor(4294967296 / max) * max;
+  const buf = new Uint32Array(1);
+  let v;
+  do { crypto.getRandomValues(buf); v = buf[0]; } while (v >= limit);
+  return v % max;
+}
 
+function makePwd(pool, len){
+  let s = '';
+  for (let i=0;i<len;i++) s += pool[randIdx(pool.length)];
+  return s;
+}
+
+function gen(record){
+  const pool = poolChars();
+  if (!pool){ document.getElementById('out').textContent = I18N[lang].err; return null; }
   const n = parseInt(document.getElementById('len').value, 10);
-  const buf = new Uint32Array(n);
-  crypto.getRandomValues(buf);          /* 密码学安全随机 */
-
-  let pwd = '';
-  for (let i=0;i<n;i++){
-    pwd += pool[buf[i] % pool.length];
-  }
-
+  const pwd = makePwd(pool, n);
   document.getElementById('out').textContent = pwd;
   rate(pwd, pool.length, n);
+  if (record !== false) addHistory(pwd);
+  return pwd;
 }
 
-/**
- * 评估强度：算理论熵值并给出口头化评级
- * @param {string} pwd 密码
- * @param {number} poolSize 字符集大小
- * @param {number} len 长度
- */
+function genBatch(){
+  const pool = poolChars();
+  if (!pool){ document.getElementById('out').textContent = I18N[lang].err; return; }
+  const n = parseInt(document.getElementById('len').value, 10);
+  const count = parseInt(document.getElementById('batch').value, 10);
+  const box = document.getElementById('batchList');
+  document.getElementById('batchCard').style.display = '';
+  box.innerHTML = '';
+  for (let i=0;i<count;i++){
+    const pwd = makePwd(pool, n);
+    const row = document.createElement('div');
+    row.className = 'list-row';
+    const t = document.createElement('span');
+    t.className = 'pw'; t.textContent = (i+1) + '. ' + pwd;
+    row.appendChild(t);
+    row.onclick = function(){ copyText(pwd); };
+    box.appendChild(row);
+    addHistory(pwd, true);
+  }
+}
+
 function rate(pwd, poolSize, len){
   const bits = len * Math.log2(poolSize);
-  let level, pct;
-
-  if      (bits < 40) { level = I18N[lang].weak;       pct = 25; }
-  else if (bits < 60) { level = I18N[lang].fair;       pct = 50; }
-  else if (bits < 90) { level = I18N[lang].strong;     pct = 75; }
-  else                { level = I18N[lang].veryStrong; pct = 100; }
-
-  document.getElementById('barFill').style.width = pct + '%';
-  document.getElementById('strength').textContent = level + ' · ' + Math.round(bits) + ' bits';
+  let level, color;
+  if      (bits < 40) { level = I18N[lang].weak;       color = '#ef5350'; }
+  else if (bits < 60) { level = I18N[lang].fair;       color = '#ffca28'; }
+  else if (bits < 90) { level = I18N[lang].strong;     color = '#26a69a'; }
+  else                { level = I18N[lang].veryStrong; color = '#42a5f5'; }
+  const ring = document.getElementById('ring');
+  ring.style.setProperty('--pct', Math.min(100, Math.round(bits / 128 * 100)) + '%');
+  ring.style.setProperty('--ring-color', color);
+  document.getElementById('level').textContent = level;
+  document.getElementById('bitsText').textContent = Math.round(bits) + ' bits';
+  document.getElementById('vEnt').textContent = Math.round(bits);
 }
 
-/** 构建字符类型勾选框 */
 function buildOpts(){
   const box = document.getElementById('opts');
   box.innerHTML = '';
@@ -250,65 +283,263 @@ function buildOpts(){
     b.textContent = SETS[k].label;
     b.onclick = function(){
       enabled[k] = !enabled[k];
-      // 至少保留一种字符类型，否则生成的密码为空
       const any = Object.keys(enabled).some(function(x){ return enabled[x]; });
       if (!any) enabled[k] = true;
-      buildOpts();
+      buildOpts(); gen(false);
     };
     box.appendChild(b);
   });
 }
 
-function onLenChange(){
-  document.getElementById('vLen').textContent = document.getElementById('len').value;
+function onLenChange(){ document.getElementById('vLen').textContent = document.getElementById('len').value; }
+function onBatchChange(){ document.getElementById('vBatch').textContent = document.getElementById('batch').value; }
+
+function addHistory(pwd, quiet){
+  history.unshift({ p:pwd, t:Date.now() });
+  history = history.slice(0, 24);
+  saveHistory();
+  if (!quiet) renderHistory();
+}
+const HKEY = 'password_gen_history_v2';
+function saveHistory(){ try{ localStorage.setItem(HKEY, JSON.stringify(history)); }catch(e){} }
+function loadHistory(){ try{ history = JSON.parse(localStorage.getItem(HKEY)) || []; }catch(e){ history = []; } }
+function clearHistory(){ history = []; saveHistory(); renderHistory(); toast(I18N[lang].clear); }
+function renderHistory(){
+  const box = document.getElementById('history');
+  box.innerHTML = '';
+  if (!history.length){
+    const d = document.createElement('div'); d.className = 'empty';
+    d.textContent = I18N[lang].empty; box.appendChild(d); return;
+  }
+  history.forEach(function(h){
+    const row = document.createElement('div'); row.className = 'list-row';
+    const p = document.createElement('span'); p.className = 'pw'; p.textContent = h.p;
+    const d = new Date(h.t);
+    const tm = document.createElement('span'); tm.className = 'tm';
+    tm.textContent = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    row.appendChild(p); row.appendChild(tm);
+    row.onclick = function(){ copyText(h.p); };
+    box.appendChild(row);
+  });
 }
 
-/** 复制到剪贴板；老浏览器降级用 execCommand */
 function copyPwd(){
   const txt = document.getElementById('out').textContent;
-  if (!txt || txt === '点击生成') return;
-
+  if (!txt || txt === '点击「生成」') return;
+  copyText(txt);
+}
+function copyText(txt){
   if (navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(txt).then(function(){ flash(); }, function(){ fallback(txt); });
-  } else {
-    fallback(txt);
+    navigator.clipboard.writeText(txt).then(function(){ toast(I18N[lang].copied); }, fallback);
+  } else fallback();
+  function fallback(){
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta); toast(I18N[lang].copied);
   }
 }
-function fallback(txt){
-  const ta = document.createElement('textarea');
-  ta.value = txt; document.body.appendChild(ta);
-  ta.select();
-  try { document.execCommand('copy'); flash(); } catch(e){}
-  document.body.removeChild(ta);
-}
-function flash(){
-  const el = document.getElementById('out');
-  const old = el.textContent;
-  el.textContent = I18N[lang].copied;
-  setTimeout(function(){ el.textContent = old; }, 900);
+let toastTimer = null;
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = '☠ ' + msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ el.classList.remove('show'); }, 1600);
 }
 
 function refresh(){
   const L = I18N[lang];
-  document.getElementById('t_title').textContent = L.title;
-  document.getElementById('t_sub').textContent   = L.sub;
-  document.getElementById('t_hint').textContent  = L.hint;
+  ['title','sub','hint','gen','genbatch','copy','clear','len','ent','batch','exclude',
+   'strength','tip','batchlist','hist'].forEach(function(k){
+    document.getElementById('t_'+k).textContent = L[k];
+  });
   document.getElementById('langBtn').textContent = (lang==='zh') ? 'EN' : '中';
+  buildOpts(); renderHistory();
 }
-function toggleLang(){ lang = (lang==='zh') ? 'en' : 'zh'; refresh(); }
+function toggleLang(){ lang = (lang==='zh') ? 'en' : 'zh'; refresh(); gen(false); }
 
-buildOpts();
+/* 专属彩蛋入口：生成一枚隐藏密码 */
+window.__PG_EGG__ = function(){
+  const pwd = 'Solcat@2026!';
+  document.getElementById('out').textContent = pwd;
+  rate(pwd, 94, pwd.length);
+  toast('☠ 隐藏密码已解锁：' + pwd);
+};
+
+loadHistory();
 refresh();
-gen();
+gen(false);
 
-/* ---------- PWA 注册 ----------
- * 注册 Service Worker 后本页被缓存，断网也能打开。
- * 放在最后且 catch 掉异常：即使浏览器不支持也不影响正常功能。 */
 if ('serviceWorker' in navigator){
   window.addEventListener('load', function(){
     navigator.serviceWorker.register('./sw.js').catch(function(){});
   });
 }
+</script>
+<!-- SOLCAT EASTER EGG PROTOCOL v2.0 -->
+<script>
+/* ============================================================
+ * SOLCAT EASTER EGG PROTOCOL v2.0 — 通用彩蛋引擎
+ * 零依赖 · 单文件 · 可注入任意 HTML 项目
+ * ============================================================ */
+(function(){
+  'use strict';
+  if (window.__SOLCAT_EGG__) return;
+  window.__SOLCAT_EGG__ = { version:'2.0', unlocked:new Set(), onUnlock:[] };
+
+  var E = window.__SOLCAT_EGG__;
+  var KONAMI = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+  var seq = [], logoClicks = 0, logoTimer = null;
+
+  /* ---------- 1. 控制台署名（ASCII Art） ---------- */
+  function banner(){
+    var art = '%c\n  ____             _   _       _   _   \n' +
+      ' / ___|  ___  _ __| |_(_) __ _| |_| |__  \n' +
+      ' \\___ \\ / _ \\| \'__| __| |/ _` | __| \'_ \\ \n' +
+      '  ___) | (_) | |  | |_| | (_| | |_| | | |\n' +
+      ' |____/ \\___/|_|   \\__|_|\\__,_|\\__|_| |_|\n';
+    console.log(art, 'color:#26a69a;font-family:monospace;font-weight:bold');
+    console.log('%c☠ SOLCAT EASTER EGG PROTOCOL v2.0 — 你找到了隐藏入口',
+      'color:#666;font-size:11px;letter-spacing:1px');
+    console.log('%c提示：↑↑↓↓←→←→BA · 连点标题 5 次 · 输入 solcat · Ctrl+Shift+T',
+      'color:#999;font-size:10px');
+  }
+
+  /* ---------- 2. 烟花彩带粒子 ---------- */
+  function confetti(){
+    var colors = ['#26a69a','#42a5f5','#ef5350','#ffca28','#ab47bc','#66bb6a','#ff7043'];
+    var cvs = document.createElement('canvas');
+    cvs.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:99999';
+    document.body.appendChild(cvs);
+    var ctx = cvs.getContext('2d'), W = cvs.width = innerWidth, H = cvs.height = innerHeight;
+    var P = [];
+    for (var i=0;i<180;i++) P.push({
+      x:W/2+(Math.random()-.5)*120, y:H*.4+(Math.random()-.5)*40,
+      vx:(Math.random()-.5)*18, vy:-Math.random()*16-4,
+      c:colors[i%colors.length], s:Math.random()*8+4, r:Math.random()*6,
+      life:1, spin:(Math.random()-.5)*.3
+    });
+    var f = 0;
+    (function draw(){
+      f++; ctx.clearRect(0,0,W,H);
+      P.forEach(function(p){
+        p.x+=p.vx; p.y+=p.vy; p.vy+=.35; p.vx*=.99; p.r+=p.spin; p.life-=.006;
+        if(p.life<=0) return;
+        ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r); ctx.globalAlpha=p.life;
+        ctx.fillStyle=p.c; ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6); ctx.restore();
+      });
+      if (f<180) requestAnimationFrame(draw); else cvs.remove();
+    })();
+  }
+
+  /* ---------- 3. 隐藏开发者面板 ---------- */
+  function devPanel(app){
+    var old = document.getElementById('__egg_panel');
+    if (old){ old.remove(); return; }
+    var d = document.createElement('div');
+    d.id='__egg_panel';
+    d.style.cssText='position:fixed;bottom:20px;right:20px;z-index:99998;width:280px;'+
+      'background:rgba(18,20,26,.94);color:#e0e0e0;border:1px solid #26a69a;border-radius:14px;'+
+      'padding:18px;font:12px/1.7 ui-monospace,monospace;backdrop-filter:blur(12px);'+
+      'box-shadow:0 12px 40px rgba(0,0,0,.4);animation:eggIn .3s ease';
+    d.innerHTML='<div style="color:#26a69a;font-weight:bold;font-size:13px;margin-bottom:10px">'+
+      '☠ SOLCAT 开发者模式</div>'+
+      '<div>应用　　: '+app+'</div>'+
+      '<div>协议　　: EGG PROTOCOL v'+E.version+'</div>'+
+      '<div>解锁数　: '+E.unlocked.size+'</div>'+
+      '<div>UA　　　: '+(navigator.userAgent.slice(0,38))+'…</div>'+
+      '<div>屏幕　　: '+innerWidth+'×'+innerHeight+'</div>'+
+      '<div>运行时间: '+Math.round(performance.now()/1000)+'s</div>'+
+      '<div style="color:#888;margin-top:10px;border-top:1px solid #333;padding-top:8px">'+
+      '已解锁: '+Array.from(E.unlocked).join(', ')+'</div>'+
+      '<button onclick="this.parentNode.remove()" style="margin-top:12px;width:100%;padding:6px;'+
+      'background:#26a69a;color:#fff;border:0;border-radius:6px;cursor:pointer">关闭</button>';
+    document.body.appendChild(d);
+  }
+
+  /* ---------- 4. 隐藏主题（赛博朋克） ---------- */
+  function cyberTheme(){
+    var s=document.getElementById('__egg_cyber');
+    if(s){ s.remove(); document.body.classList.remove('egg-cyber'); return; }
+    s=document.createElement('style'); s.id='__egg_cyber';
+    s.textContent='body.egg-cyber{filter:invert(1) hue-rotate(180deg)!important;}'+
+      'body.egg-cyber *{font-family:"Courier New",monospace!important;letter-spacing:1px}';
+    document.head.appendChild(s); document.body.classList.add('egg-cyber');
+    unlock('cyber','☠ 赛博模式已启用');
+  }
+
+  /* ---------- 5. 解锁分发 ---------- */
+  function unlock(id,msg){
+    if (E.unlocked.has(id)) return;
+    E.unlocked.add(id);
+    if (msg) console.log('%c[EGG] '+msg,'color:#ffca28;font-weight:bold');
+    E.onUnlock.forEach(function(fn){ try{fn(id);}catch(e){} });
+    var t=document.createElement('div');
+    t.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);'+
+      'z-index:99997;background:rgba(18,20,26,.92);color:#ffca28;padding:18px 28px;'+ 
+      'border:1px solid #ffca28;border-radius:12px;font:14px ui-monospace,monospace;'+
+      'pointer-events:none;animation:eggIn .3s ease;box-shadow:0 8px 30px rgba(0,0,0,.4)';
+    t.textContent='☠ '+msg;
+    document.body.appendChild(t); setTimeout(function(){t.remove();},2200);
+  }
+
+  /* ---------- 6. 事件绑定 ---------- */
+  function init(){
+    var app = document.title || 'SOLCAT App';
+    banner();
+
+    // Konami 秘籍
+    addEventListener('keydown', function(e){
+      var k = e.key.length===1 ? e.key.toLowerCase() : e.key;
+      seq.push(k); if(seq.length>KONAMI.length) seq.shift();
+      if (seq.length===KONAMI.length && KONAMI.every(function(v,i){return seq[i]===v;})){
+        seq=[]; confetti(); unlock('konami','KONAMI CODE 已激活！');
+      }
+      // Ctrl+Shift+T → 赛博主题
+      if (e.ctrlKey && e.shiftKey && (e.key==='T'||e.key==='t')){
+        e.preventDefault(); cyberTheme();
+      }
+      // 输入 solcat
+      if (e.key==='Enter' && window.__eggBuf__ === 'solcat'){ cyberTheme(); window.__eggBuf__=''; }
+      if (k.length===1) window.__eggBuf__ = ((window.__eggBuf__||'')+k).slice(-10);
+    });
+
+    // 连点标题 5 次 → 开发者面板
+    addEventListener('DOMContentLoaded', function(){
+      var targets = document.querySelectorAll('h1,.head h1,.logo,header h1');
+      var t = targets[0];
+      if(t){ t.style.cursor='default'; t.addEventListener('click',function(){
+        logoClicks++;
+        clearTimeout(logoTimer);
+        logoTimer=setTimeout(function(){logoClicks=0;},900);
+        if(logoClicks>=5){ logoClicks=0; devPanel(app); unlock('dev','开发者模式已解锁'); }
+      });}
+      // 给 body 加动画 keyframe
+      var a=document.createElement('style');
+      a.textContent='@keyframes eggIn{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}';
+      document.head.appendChild(a);
+    });
+
+    console.log('%c☠ 彩蛋引擎已加载 — 祝你玩得开心','color:#26a69a');
+  }
+
+  if (document.readyState==='loading') addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+
+</script>
+<script>
+(function(){
+  var E = window.__SOLCAT_EGG__;
+  if (!E) return;
+
+    var fired = false;
+    E.onUnlock.push(function(id){
+      if (fired || ['konami','dev','cyber'].indexOf(id) < 0) return;
+      fired = true;
+      window.__PG_EGG__();
+    });
+})();
 </script>
 </body>
 </html>
